@@ -5,10 +5,10 @@ import re
 from bs4 import BeautifulSoup
 from flask import Flask, render_template, request, jsonify, Response
 from flask_sqlalchemy import SQLAlchemy
-
-basedir = os.path.abspath(os.path.dirname(__file__))
+from flask_cors import CORS
 
 app = Flask(__name__)
+CORS(app)
 app.config.from_object(os.environ['APP_SETTINGS'])
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
