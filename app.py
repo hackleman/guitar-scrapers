@@ -5,7 +5,6 @@ import re
 from bs4 import BeautifulSoup
 from flask import Flask, render_template, request, jsonify, Response
 from flask_sqlalchemy import SQLAlchemy
-from tab import UltimateTab
 
 basedir = os.path.abspath(os.path.dirname(__file__))
 
@@ -32,23 +31,22 @@ def index():
         if r:
             html = r.content
 
-            # Parse url and find pre tag with tablature
+            # Parse url and find pre tag with tabs
             soup = BeautifulSoup(html, "html.parser")
             tabs_html_content = soup.find_all('pre')
             formatted = ''.join(map(str, tabs_html_content[1].contents))
 
-            # Parse each line of the string into object
+            # Parse each line into object
             lines = []
 
             for line in formatted.split('\n'):
                 if '<span' in line:
                     continue
 
-                else: # Line contains lyrics/string
+                else:
                     lines.append(line[:-2])
 
-            # Construct tab json object
-            
+            # Construct tab
             tab = {}
             tab['lines'] = lines
             response = jsonify(tab)
@@ -70,12 +68,19 @@ def index():
         response = jsonify({'error': 'timeout'})
         response.headers.set("Content-Type", "application/json")
         return response
-    
-    if request.method == 'GET':
-        response = jsonify({ 'msg': 'route working'})
-        response.headers.set("Content-Type", "application/json")
-        return response
 
+    if request.method == 'GET':
+        try:
+            url = request.args.get('url')
+            try:
+                tab = Result.query.filter_by(url = url).first()
+                return jsonify(tab.result_all)
+            except:
+                return jsonify({'error': 'DB find failure'})
+        except:
+            return jsonify({'error': 'Invalid URL'})
+
+        return jsonify({ 'msg': 'route working'})
 
 if __name__ == '__main__':
     app.run()
