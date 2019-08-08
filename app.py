@@ -2,10 +2,11 @@ import os
 import requests
 import json
 import re
-from bs4 import BeautifulSoup
+
 from flask import Flask, render_template, request, jsonify, Response
 from flask_sqlalchemy import SQLAlchemy
 from flask_cors import CORS
+from parseurl import tab_from_url
 
 app = Flask(__name__)
 CORS(app)
@@ -17,70 +18,117 @@ from models import *
 
 @app.route('/', methods = ['GET', 'POST'])
 def index():
-
+    # CREATE new Tab from artist, title, url
     if request.method == 'POST':
         try:
             url = request.args.get('url')
             r = requests.get(url)
         except:
-            error = {'error': 'Invalid URL'}
-            response = jsonify(error)
-            response.headers.set("Content-Type", "application/json")
-            return response
+            return jsonify({'error': 'Invalid URL'})
         
         if r:
-            html = r.content
+            tab = tab_from_url(r)
 
-            # Parse url and find pre tag with tabs
-            soup = BeautifulSoup(html, "html.parser")
-            tabs_html_content = soup.find_all('pre')
-            formatted = ''.join(map(str, tabs_html_content[1].contents))
-
-            # Parse each line into object
-            lines = []
-
-            for line in formatted.split('\n'):
-                if '<span' in line:
-                    continue
-
-                else:
-                    lines.append(line[:-2])
-
-            # Construct tab
-            tab = {}
-            tab['lines'] = lines
-            response = jsonify(tab)
             try:
-                result = Result(
+                # check if the tab already exists
+                if bool(db.session.query(Tab.url).filter_by(url=url).first()):
+                    return jsonify({'error': 'item already exists in DB'})
+
+                newTab = Tab(
+                    artist = request.args.get('artist'),
+                    title = request.args.get('title'),
                     url = url,
-                    result_all = tab
+                    lines = tab
                 )
-                db.session.add(result)
+                db.session.add(newTab)
                 db.session.commit()
             except:
-                response = jsonify({'error': 'Unable to add items to DB'})
-                response.headers.set("Content-Type", "application/json")
-                return response
+                return jsonify({'error': 'Unable to POST to DB'})
 
-            response.headers.set("Content-Type", "application/json")
-            return response
+            return jsonify(tab)
 
-        response = jsonify({'error': 'timeout'})
-        response.headers.set("Content-Type", "application/json")
-        return response
+        return jsonify({'error': 'timeout'})
 
+    # Get all Tabs from DB
     if request.method == 'GET':
-        try:
-            url = request.args.get('url')
-            try:
-                tab = Result.query.filter_by(url = url).first()
-                return jsonify(tab.result_all)
-            except:
-                return jsonify({'error': 'DB find failure'})
-        except:
-            return jsonify({'error': 'Invalid URL'})
 
-        return jsonify({ 'msg': 'route working'})
+        try:
+            data = []
+            tabs = db.session.query(Tab).all()
+            for tab in tabs:
+                item = {}
+                item['artist'] = tab.artist
+                item['url'] = tab.url
+                item['title'] = tab.title
+                data.append(item)
+            return jsonify({'data': data})
+
+        except:
+            return jsonify({'error': 'DB find failure'})
+
+
+@app.route('/artist/', methods = ['GET'])
+def findByArtist():
+    artist = request.args.get('artist')
+    if artist is None:
+        return jsonify({"error": "No artist specified"})
+
+    try:
+        data = []
+        tabs = db.session.query(Tab).filter_by(artist=artist).all()
+        for tab in tabs:
+            item = {}
+            item['artist'] = tab.artist
+            item['url'] = tab.url
+            item['title'] = tab.title
+            data.append(item)
+        return jsonify({'data': data})
+
+    except:
+        return jsonify({'error': 'DB find failure'})
+
+
+@app.route('/title/', methods = ['GET'])
+def findByTitle():
+    title = request.args.get('title')
+    if title is None:
+        return jsonify({"error": "No title specified"})
+
+    try:
+        data = []
+        tabs = db.session.query(Tab).filter_by(title=title).all()
+        for tab in tabs:
+            item = {}
+            item['artist'] = tab.artist
+            item['url'] = tab.url
+            item['title'] = tab.title
+            data.append(item)
+        return jsonify({'data': data})
+
+    except:
+        return jsonify({'error': 'DB find failure'})
+
+@app.route('/url/', methods = ['GET'])
+def findByURL():
+    url = request.args.get('url')
+    if url is None:
+        return jsonify({"error": "No url specified"})
+
+    try:
+        tabs = db.session.query(Tab).filter_by(url=url).first()
+        return jsonify(tabs.lines)
+
+    except:
+        return jsonify({'error': 'DB find failure'})
+
+@app.route('/test/', methods = ['GET'])
+def test():
+
+    return jsonify({ 'msg': 'test working'})
+
+        
+    
+
 
 if __name__ == '__main__':
     app.run()

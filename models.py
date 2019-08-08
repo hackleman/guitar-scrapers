@@ -24,11 +24,10 @@ class Tab(db.Model):
     url = db.Column(db.String())
     lines = db.Column(JSON)
 
-    def __init__(self, url, result_all):
+    def __init__(self, artist, title, url, lines):
         self.artist = artist
         self.title = title
         self.url = url
-        self.result_all = result_all
-    
+        self.lines = lines
     def __repr__(self):
         return '<id {}>'.format(self.id)
