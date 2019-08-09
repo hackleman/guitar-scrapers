@@ -45,7 +45,7 @@ def index():
             except:
                 return jsonify({'error': 'Unable to POST to DB'})
 
-            return jsonify(tab)
+            return jsonify({'tab': tab, 'msg': 'TAB CREATED'})
 
         return jsonify({'error': 'timeout'})
 
