@@ -108,20 +108,39 @@ def findByTitle():
     except:
         return jsonify({'error': 'DB find failure'})
 
-@app.route('/url/', methods = ['GET'])
+@app.route('/url/', methods = ['GET', 'DELETE'])
 def findByURL():
-    url = request.args.get('url')
-    if url is None:
-        return jsonify({"error": "No url specified"})
+    if request.method == 'GET':
+        url = request.args.get('url')
+        if url is None:
+            return jsonify({"error": "No url specified"})
+        try:
+            tabs = db.session.query(Tab).filter_by(url=url).first()
+            return jsonify(tabs.lines)
+        except:
+            return jsonify({'error': 'DB find failure'})
 
-    try:
-        tabs = db.session.query(Tab).filter_by(url=url).first()
-        return jsonify(tabs.lines)
+    if request.method == 'DELETE':
+        try:
+            url = request.args.get('url')
+            if url is None:
+                return jsonify({'msg': 'invalid URL'})
 
-    except:
-        return jsonify({'error': 'DB find failure'})
+            item = db.session.query(Tab).filter_by(url=url).first()
+            if item is None:
+                return jsonify({'msg': 'URL NOT FOUND'})
+            
+            db.session.delete(item)
+            db.session.commit()
+            return jsonify({'msg': 'Item DELETED'})
 
-@app.route('/test/', methods = ['GET'])
+        except:
+            return jsonify({'msg': 'DELETE FAILED'})
+
+        return jsonify({'msg': 'DELETE URL'})
+
+
+@app.route('/test/', methods = ['GET', 'DELETE'])
 def test():
 
     return jsonify({ 'msg': 'test working'})
